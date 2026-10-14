@@ -1,9 +1,9 @@
 CC ?= gcc
-CFLAGS ?= -std=c11 -Wall -Wextra -O2
+CFLAGS ?= -std=c11 -Wall -Wextra -O3
 SRCS = field.c link.c source.c relay.c dest.c codec.c sim.c main.c psi_opt.c
 LIB_SRCS = field.c source.c dest.c codec.c
 
-.PHONY: all lib run clean
+.PHONY: all lib run clean cpu_bench walk
 
 all: bats_sim psi_opt
 
@@ -22,5 +22,11 @@ psi_opt: psi_opt.c
 run: bats_sim
 	./bats_sim input.txt recovered.txt
 
+cpu_bench: cpu_bench.c libbats.a
+	$(CC) $(CFLAGS) -I../multi-flow-rate-control/apps/bats_line -o cpu_bench cpu_bench.c libbats.a
+
+walk: walk_pattern.c libbats.a
+	$(CC) $(CFLAGS) -I../multi-flow-rate-control/apps/bats_line -o walk_pattern walk_pattern.c libbats.a
+
 clean:
-	rm -f bats_sim bats_sim.exe psi_opt psi_opt.exe recovered.txt libbats.a *.o
+	rm -f bats_sim bats_sim.exe psi_opt psi_opt.exe cpu_bench walk_pattern recovered.txt libbats.a *.o
