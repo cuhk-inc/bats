@@ -96,11 +96,18 @@ static int gf_axpy_self_test(void)
 
 static void gf_axpy_init(void)
 {
+    const char *force_scalar = getenv("BATS_SCALAR");
+
     cpu_ssse3 = cpu_has_ssse3();
+    /* BATS_SCALAR=1 时改走标量，用来和 SSSE3 比同一条四跳的 CPU。 */
+    if (force_scalar != NULL && force_scalar[0] != '\0' && force_scalar[0] != '0') {
+        cpu_ssse3 = 0;
+    }
     if (cpu_ssse3 && gf_axpy_self_test() != 0) {
         fprintf(stderr, "gf_axpy ssse3 自检失败\n");
         exit(1);
     }
+    fprintf(stderr, "gf_axpy=%s\n", cpu_ssse3 ? "ssse3" : "scalar");
 }
 
 void gf_axpy(uint8_t *dst, const uint8_t *src, uint8_t a, size_t n)
