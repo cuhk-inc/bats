@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 300" width="820" height="300">
+  <rect width="820" height="300" fill="#ffffff"/>
+  <text x="16" y="26" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15">One relay, one batch. Two packets have arrived. The relay does not know p1, p4, or p6.</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">
+    <rect x="16" y="48" width="250" height="78" rx="4" fill="#d6eaf8" stroke="#1a5276"/>
+    <text x="141" y="72" fill="#1a5276">arrived, batch 12</text>
+    <text x="141" y="94" fill="#1c2833">coeff c1    payload y1</text>
+    <rect x="16" y="136" width="250" height="78" rx="4" fill="#d6eaf8" stroke="#1a5276"/>
+    <text x="141" y="160" fill="#1a5276">arrived, batch 12</text>
+    <text x="141" y="182" fill="#1c2833">coeff c2    payload y2</text>
+  </g>
+  <text x="290" y="130" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">same</text>
+  <text x="286" y="148" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">a, b</text>
+  <path d="M270 86 h24 M270 174 h24 M294 86 v88" fill="none" stroke="#1c2833" stroke-width="1.4"/>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">
+    <rect x="340" y="70" width="464" height="150" rx="6" fill="#eafaf1" stroke="#196f3d"/>
+    <text x="356" y="98" fill="#196f3d">one packet forwarded for this batch</text>
+    <text x="356" y="128" fill="#1c2833">new coefficient = a c1 + b c2</text>
+    <text x="356" y="156" fill="#1c2833">new payload    = a y1 + b y2</text>
+    <text x="356" y="196" fill="#5d6d7e" font-size="13">a and b are the same pair in both lines</text>
+  </g>
+  <text x="16" y="244" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">Eight draws from recode_state produce eight forwarded packets. A later batch on this hop continues that same state.</text>
+  <text x="16" y="268" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">Packets of another batch_id stay in another bucket. With nothing in the bucket, the relay forwards nothing.</text>
+  <text x="16" y="292" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">On the line program, a bucket of one to seven packets is mixed after 15 idle seconds.</text>
+</svg>

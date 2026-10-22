@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 292" width="820" height="292">
+  <rect width="820" height="292" fill="#ffffff"/>
+  <text x="16" y="26" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15">Psi is a table of degree weights held by the source and the destination. A relay never reads it.</text>
+  <text x="16" y="52" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">While measuring. Both ends still hold the old table. The destination only records ranks.</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">
+    <rect x="16" y="66" width="150" height="64" rx="4" fill="#fef9e7" stroke="#b9770e"/>
+    <text x="91" y="90" fill="#1c2833">source</text>
+    <text x="91" y="110" fill="#9a6b12">psi_line.h</text>
+    <rect x="210" y="66" width="150" height="64" rx="4" fill="#f4f6f7" stroke="#566573"/>
+    <text x="285" y="90" fill="#1c2833">relays</text>
+    <text x="285" y="110" fill="#5d6d7e">no Psi</text>
+    <rect x="404" y="66" width="180" height="64" rx="4" fill="#fef9e7" stroke="#b9770e"/>
+    <text x="494" y="90" fill="#1c2833">destination</text>
+    <text x="494" y="110" fill="#9a6b12">psi_line.h, counting ranks</text>
+  </g>
+  <text x="620" y="102" fill="#1a5276" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">writes</text>
+  <text x="604" y="120" fill="#1a5276" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">psi_network.txt</text>
+  <text x="16" y="164" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">Next transfer, after that file is also in the source working directory. The line program loads it at startup.</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">
+    <rect x="16" y="180" width="170" height="64" rx="4" fill="#d5f5e3" stroke="#196f3d"/>
+    <text x="101" y="204" fill="#1c2833">source</text>
+    <text x="101" y="224" fill="#196f3d">psi_network.txt</text>
+    <rect x="230" y="180" width="150" height="64" rx="4" fill="#f4f6f7" stroke="#566573"/>
+    <text x="305" y="204" fill="#1c2833">relays</text>
+    <text x="305" y="224" fill="#5d6d7e">no Psi</text>
+    <rect x="424" y="180" width="190" height="64" rx="4" fill="#d5f5e3" stroke="#196f3d"/>
+    <text x="519" y="204" fill="#1c2833">destination</text>
+    <text x="519" y="224" fill="#196f3d">psi_network.txt</text>
+  </g>
+  <text x="16" y="272" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">The first draw from a batch is the degree. A different table changes that degree, then the chosen packets, then G.</text>
+</svg>

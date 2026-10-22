@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 336" width="820" height="336">
+  <rect width="820" height="336" fill="#ffffff"/>
+  <text x="16" y="26" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15">Destination, the same batch. code_seed and batch_id rebuild the three rows of G.</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
+    <rect x="16" y="44" width="788" height="36" rx="4" fill="#fef9e7" stroke="#b9770e" stroke-dasharray="5 3"/>
+    <text x="28" y="67" fill="#9a6b12">rebuilt locally: row of p1 is (g0 g1 g2 g3 g4 g5 g6 g7), and likewise one row each for p4 and p6</text>
+  </g>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">
+    <rect x="16" y="100" width="788" height="44" rx="4" fill="#d6eaf8" stroke="#1a5276"/>
+    <text x="410" y="126" fill="#1c2833">a packet that arrived: batch 12, coefficient (c0 c1 c2 c3 c4 c5 c6 c7), payload z</text>
+  </g>
+  <text x="16" y="172" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">That packet gives one equation for each chosen source packet. For p1 the coefficient is the dot product</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" text-anchor="middle" fill="#1c2833">
+    <rect x="16" y="186" width="788" height="44" rx="4" fill="#f4f6f7" stroke="#566573"/>
+    <text x="410" y="214">g0 c0 + g1 c1 + g2 c2 + g3 c3 + g4 c4 + g5 c5 + g6 c6 + g7 c7</text>
+  </g>
+  <text x="16" y="258" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">The right-hand side is z. The same dot product with the row of p4, and with the row of p6, gives their equations.</text>
+  <text x="16" y="286" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">At the source, before any relay, the coefficient was a column of the identity, so this dot product was a single entry of G.</text>
+  <text x="16" y="314" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">A solved batch substitutes those source packets into every other batch that contains them. Inactivation finishes whatever peeling leaves.</text>
+</svg>

@@ -2,7 +2,7 @@
 
 BATS (BATched Sparse codes) over GF(256). This directory is a codec library plus an in-process simulator. Link the library into another program. The simulator is only for checking the code on a fake four-node path.
 
-The library does three things: `bats_encode`, `bats_recode`, and `bats_decode`. It does not add precoding, open sockets, or define a packet header. The caller carries `code_seed`, `batch_id`, `K`, and `T` to the other side. How to use the codec, with a picture of each node and the two-run degree file, is in `INTEGRATION.md`.
+The library does three things: `bats_encode`, `bats_recode`, and `bats_decode`. It does not add precoding, open sockets, or define a packet header. The caller carries `code_seed`, `batch_id`, `K`, and `T` to the other side. How a batch is formed, recoded, and solved, and how the degree file is loaded on the next run, is in `INTEGRATION.md`.
 
 ## Coding scheme
 

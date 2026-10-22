@@ -1,151 +1,86 @@
 # Using BATS
 
-One generation is `K` source packets of `T` bytes. The source turns that generation into batches of 8 packets. Each relay mixes packets that share one batch. The destination solves the generation. `G`, the matrix that mixed the source packets, is never placed in a packet. Both ends rebuild it from `code_seed` and `batch_id`.
+A generation is `K` source packets of `T` bytes. The pictures below use one small batch so the mixing is visible. In the library that batch is eight packets, the degree `d` comes from Ψ, and the arithmetic is over GF(256). `G` and the chosen packet indices are never placed in a packet. The destination rebuilds them from `code_seed` and `batch_id`.
 
-```mermaid
-flowchart LR
-  S["Source<br/>bats_encode"] --> R1["Relay<br/>bats_recode"]
-  R1 --> R2["Relay<br/>bats_recode"]
-  R2 --> D["Destination<br/>bats_decode"]
-```
+The source calls `bats_encode`. Each relay calls `bats_recode`. The destination calls `bats_decode`. A relay does not decode. The destination does not recode.
 
-A path may have one relay or several. Every relay does the same job. The destination does not recode. A relay does not decode, and it does not read the degree distribution.
+## What one batch takes from the generation
 
-## One batch
+![One batch keeps d of the K source packets](figures/batch.svg)
 
-```mermaid
-flowchart TB
-  Kpkts["K source packets"] --> Draw["Draw a degree d from Psi"]
-  Draw --> Choose["Choose d of the K packets"]
-  Choose --> Mix["Mix them by a d by 8 matrix G"]
-  Mix --> Out["8 packets leave the source"]
-```
+The degree is the number of source packets inside the batch. Eight packets can carry a rank of at most 8, so a batch whose degree is above 8 cannot be solved from its own arrivals. It becomes solvable after other batches have recovered some of those packets. A degree near 1 solves from very little data and unlocks the batches that overlap it. Ψ is the balance between those two.
 
-`G` and the `d` chosen indices stay at the source. The destination rebuilds the same choice from `code_seed` and `batch_id`. Packet `j` of a fresh batch carries column `j` of the 8 by 8 identity as its coefficient, and column `j` of the mixed payload. A relay replaces both. The destination needs the coefficient it actually receives.
+## How the source builds the eight packets
 
-The same `code_seed` and `batch_id` always rebuild the same batch. The next batch uses `batch_id + 1`. A generation that loses packets needs further batches. When the object is longer than one generation, start the next generation at `batch_id` 0.
+![Chosen packets times G, and the packet that leaves the source](figures/encode.svg)
 
-## What you fix before the first packet
-
-The source and the destination use the same `K`, the same `T`, and the same `code_seed`. On the line program those defaults are `K = 128`, `T = 4096`, and `code_seed = 0xB175`. A relay ignores all three.
-
-Pad the last source packet with zeros when the object length is not a multiple of `T`. The destination strips that padding after a successful decode. Keep a checksum of the object bytes before that padding. `bats_decode` returns 1 when its equations have a solution. The checksum tells you those bytes are the object.
-
-Every packet carries these fields. Multi-byte integers are big-endian. The 8 coefficient bytes are copied as they are.
-
-| Field | Size | Who writes it |
-| --- | --- | --- |
-| Flow | 2 bytes | Caller. One flow uses 0 |
-| Generation | 4 bytes | Caller. The first generation is 0 |
-| `batch_id` | 4 bytes | The value passed to `bats_encode` |
-| Coefficient | 8 bytes | Source, then replaced by each relay |
-| Payload | `T` bytes | Source, then replaced by each relay |
-
-The line program already packs these, plus its own magic, version, packet index, and file sizes, into a 44-byte header. Another program can keep its own header, provided the five fields above survive every hop.
-
-## Source
-
-```mermaid
-sequenceDiagram
-  participant S as Source
-  participant Net as Next hop
-  S->>S: bats_init once
-  S->>S: Load Psi, then lay out K times T bytes
-  loop batch_id = 0, 1, 2, ...
-    S->>S: bats_encode writes 8 packets
-    S->>Net: Send coefficient and payload of each packet
-  end
-  Net-->>S: Completion signal for this generation
-```
-
-`bats_encode` returns 0 on success. The coefficient buffer is 64 bytes, packet `j` at `coeff[j * 8]`. The payload buffer is `8 * T` bytes, packet `j` at `payload[j * T]`. Stop the generation when the destination has returned 1 and the checksum matches. The library itself sends no signal back.
+`bats_encode` writes the eight packets into two buffers. Packet `j` starts at `coeff[j * 8]` and `payload[j * T]`. The call returns 0 on success.
 
 ```c
 bats_encode(src, K, T, code_seed, batch_id, coeff, payload);
 ```
 
-## Relay
+The next batch uses `batch_id + 1`. A generation that loses packets needs further batches. The following generation starts again at `batch_id` 0. The source stops a generation when the destination has solved it and the checksum matches. The library sends no signal of its own.
 
-A relay keeps one bucket per flow, generation, and `batch_id`. One call of `bats_recode` reads a single bucket. It also keeps one `uint64_t recode_state` per flow on that hop, set once to a nonzero value and then passed back in on every later batch. The library updates it. The next hop has its own variable. A new generation of the same flow keeps the same variable.
+Pad the last source packet with zeros when the object is not a multiple of `T`. The checksum covers the object before that padding. `bats_decode` returns 1 when the equations it built have a solution. The checksum is what says those bytes are the object.
 
-```mermaid
-flowchart TB
-  In["Packet arrives"] --> Key{"Same flow, generation, and batch_id?"}
-  Key --> Bucket["Append its coefficient and payload"]
-  Bucket --> Full{"Bucket holds 8 new packets?"}
-  Full -->|yes| Recode["bats_recode writes 8 new packets"]
-  Full -->|no| Wait["Wait until the hop is idle"]
-  Wait --> Some{"At least one packet in the bucket?"}
-  Some -->|yes| Recode
-  Some -->|no| Drop["Forward nothing"]
-  Recode --> Fwd["Forward the new coefficients and payloads"]
-```
+The source and the destination use the same `K`, the same `T`, and the same `code_seed`. On the line program the defaults are `K = 128`, `T = 4096`, and `code_seed = 0xB175`. Every packet carries the fields below. Multi-byte integers are big-endian. The eight coefficient bytes are copied unchanged.
 
-On the line program the idle wait is `--idle-sec`, default 15 seconds. A repeated coefficient is dropped before the call. Packet `s` in the call occupies `coeff_in[s * 8]` and `payload_in[s * T]`. With `n_in` at least 1 the call writes 8 packets and sets `n_out` to 8. With `n_in` equal to 0 it writes nothing. Input and output buffers may overlap. Forward the new coefficient with the new payload.
+| Field | Size | Role in the picture |
+| --- | --- | --- |
+| Flow | 2 bytes | Keeps one flow's batches apart. One flow uses 0 |
+| Generation | 4 bytes | Restarts `batch_id` for the next `K` packets |
+| `batch_id` | 4 bytes | Selects which `G` the destination rebuilds |
+| Coefficient | 8 bytes | How this payload was mixed, replaced at each relay |
+| Payload | `T` bytes | The mixed bytes |
+
+The line program packs these, plus its own magic, version, packet index, and file sizes, into a 44-byte header. Another program can keep its own header. These five values have to survive every hop.
+
+## What a relay changes
+
+![A relay applies one pair of coefficients to the coefficient and the payload](figures/recode.svg)
+
+The bucket key is flow, generation, and `batch_id`. One `bats_recode` call reads one bucket. `recode_state` is a `uint64_t` owned by the hop, one variable per flow. Set it to a nonzero value before the first recode of that flow and pass the same variable on every later batch, including the next generation. The library updates it. The next hop has its own variable.
+
+A repeated coefficient is dropped. Packet `s` occupies `coeff_in[s * 8]` and `payload_in[s * T]`. When `n_in` is at least 1 the call writes eight packets and sets `n_out` to 8. When `n_in` is 0 it writes nothing. The buffers may overlap. Forward each new coefficient with its new payload.
 
 ```c
 bats_recode(coeff_in, payload_in, n_in, T, &recode_state,
             coeff_out, payload_out, &n_out);
 ```
 
-## Destination
+## What the destination solves
 
-```mermaid
-flowchart TB
-  P["Packet arrives"] --> Save["Store batch_id, 8 coefficient bytes, T payload bytes"]
-  Save --> Dec["bats_decode on every packet of this generation"]
-  Dec --> More{"Return value"}
-  More -->|0| P
-  More -->|1| Sum{"Checksum matches?"}
-  Sum -->|yes| Done["Strip padding and signal the source"]
-  Sum -->|no| Bad["K, T, code_seed, or Psi differs between the ends"]
-```
+![A received coefficient dotted with a row of G](figures/decode.svg)
 
-Symbol order does not matter. Each payload pointer stays valid until `bats_decode` returns. A return of 0 means the generation needs more packets. A return of `-1` means an argument is invalid. `n_bp` and `n_inact` may be `NULL`.
+Each arrival becomes a `BatsSymbol`: `batch_id`, the eight coefficient bytes, and a pointer to `T` live payload bytes. Symbol order does not matter. The pointer stays valid until `bats_decode` returns. A return of 0 means the generation needs more packets. A return of `-1` means an argument is invalid. `n_bp` and `n_inact` may be `NULL`.
 
 ```c
 bats_decode(symbols, n_symbols, K, T, code_seed, dst, NULL, NULL);
 ```
 
-A second flow uses a new flow identifier, its own `batch_id` sequence, its own symbol array, and its own `recode_state` on each hop.
+On a return of 1, strip the padding and compare the checksum. A match is the moment to signal the source. A mismatch means the two ends used different `K`, `T`, `code_seed`, or Ψ, and the solved bytes are not the object.
 
-## Degree distribution on a new network
+A second flow has its own flow identifier, its own `batch_id` sequence, its own symbols, and its own `recode_state` on each hop.
 
-The line program fits Ψ on the path you just ran, then loads that file by itself on the next run. The library does not watch the network. A program that links `libbats.a` follows the same two runs and calls `psi_set` itself.
+## Where the degree distribution sits
 
-Relays never load Ψ. Both ends of a transfer use one distribution from the first packet to the last. The measurement run keeps the distribution it started with. The file it writes is for the next run.
+![Rank is the number of nonzero coefficient rows after elimination](figures/rank.svg)
 
-```mermaid
-flowchart TB
-  subgraph run1 [Run 1, measure]
-    A["No psi_network.txt in the working directory"] --> B["Source and destination use psi_line.h"]
-    B --> C["Destination starts with --fit-psi"]
-    C --> D["This run keeps the distribution it started with"]
-    D --> E["Destination writes psi_network.txt from the ranks it saw"]
-  end
-  E --> F["Copy psi_network.txt into the source working directory"]
-  subgraph run2 [Run 2, use it]
-    F --> G["Source and destination each find the file and load it"]
-    G --> H["Relays are left unchanged"]
-  end
-```
+![The same degree table at both ends, and the file the next run loads](figures/psi.svg)
 
-`psi_line.h` is the distribution shipped with the line program, computed for two relays and no added loss. It is the distribution of run 1. The weights in `psi_builtin.h` are a different table, used only when a program never calls `psi_set`.
+The line program does this in two transfers. Relays are the same in both.
 
-Build the line program on the Linux hosts, then run the usual four processes with the same `--k`, `--t`, and `--seed`. Set `--loss-percent 0` when the measurement should see the real path. Add `--fit-psi` on the destination only.
+On the first transfer there is no `psi_network.txt` in the working directory, so the source and the destination use `psi_line.h`. That table was computed for two relays and no added loss. The built-in weights 12, 30, 40, 44, 40, 36, 30, 24 are a different table, used only when a program never calls `psi_set`. Add `--fit-psi` on the destination only, with `--loss-percent 0` when the ranks should be those of the real path. This transfer keeps `psi_line.h` from the first packet to the last. At the end the destination prints the nine rank counts and writes `psi_network.txt`.
 
 ```bash
 ./build/bats_line --role dest --listen 9000 --output /tmp/bats_out.bin \
     --k 128 --t 4096 --seed 0xB175 --idle-sec 15 --fit-psi
 ```
 
-The destination prints nine rank counts, ranks 0 through 8, then `度数已写入 psi_network.txt`. Rank is the GF(256) rank of the coefficient rows that arrived for one batch. A batch the source finished, and from which nothing arrived, counts as rank 0. A batch the source has not sent is omitted. Copy that file into the directory where the source process starts. Leave the relays alone.
+Copy `psi_network.txt` into the directory where the source process starts. Run again without `--fit-psi`. Each end prints `装入度数 psi_network.txt` and uses that table. The checksum of this second object confirms that both ends loaded it. Delete the file on both machines to return to `psi_line.h`.
 
-Run again without `--fit-psi`. Source and destination each print `装入度数 psi_network.txt`. The checksum of this second object is the check that both ends loaded the same file. Delete the file on both machines to go back to `psi_line.h` and measure again.
-
-A path, relay count, or loss that has changed is another run 1. Pass `--fit-psi` once more, copy the new file over the old one on the source, and the following run loads it.
-
-`--fit-psi` belongs on the destination. Combined with `--copy` it is rejected. `--fit-psi /some/where/psi.txt` writes that path instead. The following run then passes `--psi /some/where/psi.txt` on both source and destination. The default name `psi_network.txt` needs no `--psi`.
+A changed path, relay count, or loss is another measuring transfer. `--fit-psi` again, then copy the new file over the old one at the source. `--fit-psi` on a relay is rejected, and so is `--fit-psi` together with `--copy`. A path other than the default name is passed back with `--psi` on both the source and the destination.
 
 ## Linking the codec into another program
 
@@ -154,9 +89,9 @@ make lib
 gcc -std=c11 -I/path/to/bats caller.c /path/to/bats/libbats.a -o caller
 ```
 
-The archive is `field.c`, `source.c`, `dest.c`, and `codec.c`. Include only `bats_codec.h`. Call `bats_init` once in each process before the first codec call. `psi_opt` stays a separate tool.
+The archive is `field.c`, `source.c`, `dest.c`, and `codec.c`. Include only `bats_codec.h`. Call `bats_init` once in each process before the first codec call. The pictures above are the three calls. `psi_opt` stays a separate tool. The library does not watch the network, so the program loads the file itself.
 
-The two runs are the same shape. On run 1, call no `psi_set`, so both ends use the built-in weights 12, 30, 40, 44, 40, 36, 30, 24 for degrees 1 through 8. At the destination, count the nine ranks over several hundred finished batches. Then:
+The measuring transfer calls no `psi_set`. Both ends then use the built-in weights. The destination counts the nine ranks over several hundred finished batches and runs:
 
 ```bash
 make psi_opt
@@ -164,6 +99,6 @@ make psi_opt
     h0 h1 h2 h3 h4 h5 h6 h7 h8
 ```
 
-`--max-degree` is `K` when `K` is below 128. Encoding already reduces a larger degree to `K`. `--eta-bar 0.98` matches the line program. The first number in the file is the maximum degree `D`. The next line is the integer weight of each degree from 1 through `D`. Lines that start with `#` are comments.
+`--max-degree` is `K` when `K` is below 128. `--eta-bar 0.98` matches the line program. The first number in the file is the maximum degree `D`. The next line is the weight of each degree from 1 through `D`. Lines that start with `#` are comments.
 
-On run 2, after `bats_init` and before the first packet, source and destination both call `psi_set` with those weights. `weights[0]` is unused. The call returns 1 when the weights are accepted. A relay skips the call.
+On the next transfer, after `bats_init` and before the first packet, the source and the destination both call `psi_set` with those weights. `weights[0]` is unused. The call returns 1 when the weights are accepted. A relay skips the call.

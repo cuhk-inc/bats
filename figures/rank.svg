@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 250" width="820" height="250">
+  <rect width="820" height="250" fill="#ffffff"/>
+  <text x="16" y="26" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15">Rank of one batch at the destination: stack the coefficient rows that arrived, then eliminate over GF(256).</text>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1c2833" text-anchor="middle">
+    <text x="150" y="58" fill="#5d6d7e">5 packets arrived, so 5 rows of 8</text>
+    <rect x="48" y="70" width="204" height="22" fill="#d6eaf8" stroke="#1a5276"/><text x="150" y="86">c c c c c c c c</text>
+    <rect x="48" y="94" width="204" height="22" fill="#d6eaf8" stroke="#1a5276"/><text x="150" y="110">c c c c c c c c</text>
+    <rect x="48" y="118" width="204" height="22" fill="#d6eaf8" stroke="#1a5276"/><text x="150" y="134">c c c c c c c c</text>
+    <rect x="48" y="142" width="204" height="22" fill="#d6eaf8" stroke="#1a5276"/><text x="150" y="158">c c c c c c c c</text>
+    <rect x="48" y="166" width="204" height="22" fill="#d6eaf8" stroke="#1a5276"/><text x="150" y="182">c c c c c c c c</text>
+  </g>
+  <text x="300" y="140" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18">eliminate</text>
+  <path d="M390 134 h36" fill="none" stroke="#1c2833" stroke-width="1.4"/>
+  <path d="M420 128 l8 6 l-8 6" fill="none" stroke="#1c2833" stroke-width="1.4"/>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#1c2833" text-anchor="middle">
+    <text x="560" y="58" fill="#5d6d7e">4 nonzero rows remain</text>
+    <rect x="458" y="70" width="204" height="22" fill="#d5f5e3" stroke="#196f3d"/><text x="560" y="86">1 * * * * * * *</text>
+    <rect x="458" y="94" width="204" height="22" fill="#d5f5e3" stroke="#196f3d"/><text x="560" y="110">0 1 * * * * * *</text>
+    <rect x="458" y="118" width="204" height="22" fill="#d5f5e3" stroke="#196f3d"/><text x="560" y="134">0 0 1 * * * * *</text>
+    <rect x="458" y="142" width="204" height="22" fill="#d5f5e3" stroke="#196f3d"/><text x="560" y="158">0 0 0 1 * * * *</text>
+    <rect x="458" y="166" width="204" height="22" fill="#f4f6f7" stroke="#566573"/><text x="560" y="182" fill="#7f8c8d">0 0 0 0 0 0 0 0</text>
+  </g>
+  <text x="700" y="140" fill="#196f3d" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16">rank 4</text>
+  <text x="16" y="220" fill="#1c2833" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">Five packets gave rank 4, because two coefficient rows were linearly dependent. The packet count is not the rank.</text>
+  <text x="16" y="242" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14">Nothing arrived for a batch the source has finished: rank 0. A batch not yet sent is left out of the count.</text>
+</svg>
