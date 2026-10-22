@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 500" width="880" height="500">
+  <rect width="880" height="500" fill="#ffffff"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#2c3e50"/>
+    </marker>
+  </defs>
+
+  <text x="24" y="28" fill="#2c3e50" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16">1. Three original packets</text>
+  <text x="250" y="28" fill="#2c3e50" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16">2. One coded packet</text>
+  <text x="560" y="28" fill="#2c3e50" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16">3. Relay mixes again</text>
+
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle">
+    <rect x="24" y="48" width="150" height="46" rx="6" fill="#d35400"/>
+    <text x="99" y="78">p1</text>
+    <rect x="24" y="104" width="150" height="46" rx="6" fill="#1a7a4c"/>
+    <text x="99" y="134">p4</text>
+    <rect x="24" y="160" width="150" height="46" rx="6" fill="#2e5aac"/>
+    <text x="99" y="190">p6</text>
+  </g>
+
+  <line x1="186" y1="127" x2="228" y2="127" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="244" y="56" width="170" height="46" fill="#d35400"/>
+    <rect x="244" y="102" width="170" height="46" fill="#1a7a4c"/>
+    <rect x="244" y="148" width="170" height="46" fill="#2e5aac"/>
+    <rect x="244" y="56" width="170" height="138" fill="none" stroke="#2c3e50" stroke-width="2"/>
+  </g>
+  <text x="329" y="216" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" text-anchor="middle">batch 12, and 7 more like it</text>
+
+  <line x1="430" y1="127" x2="468" y2="127" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="484" y="48" width="78" height="28" fill="#d35400"/>
+    <rect x="484" y="76" width="78" height="28" fill="#1a7a4c"/>
+    <rect x="484" y="104" width="78" height="28" fill="#2e5aac"/>
+    <rect x="484" y="48" width="78" height="84" fill="none" stroke="#2c3e50" stroke-width="1.5"/>
+    <rect x="484" y="156" width="78" height="28" fill="#d35400"/>
+    <rect x="484" y="184" width="78" height="28" fill="#1a7a4c"/>
+    <rect x="484" y="212" width="78" height="28" fill="#2e5aac"/>
+    <rect x="484" y="156" width="78" height="84" fill="none" stroke="#2c3e50" stroke-width="1.5"/>
+  </g>
+  <text x="582" y="150" fill="#2c3e50" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" text-anchor="middle">+</text>
+  <line x1="604" y1="150" x2="648" y2="150" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrow)"/>
+  <g>
+    <rect x="664" y="100" width="170" height="36" fill="#d35400"/>
+    <rect x="664" y="136" width="170" height="36" fill="#1a7a4c"/>
+    <rect x="664" y="172" width="170" height="36" fill="#2e5aac"/>
+    <rect x="664" y="100" width="170" height="108" fill="none" stroke="#2c3e50" stroke-width="2"/>
+  </g>
+  <text x="749" y="232" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" text-anchor="middle">still only p1, p4, p6</text>
+
+  <rect x="16" y="268" width="848" height="214" rx="12" fill="#eef8f1"/>
+  <text x="36" y="302" fill="#196f3d" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16">4. Destination puts the same three packets back</text>
+
+  <g>
+    <rect x="36" y="328" width="120" height="32" fill="#d35400"/>
+    <rect x="36" y="360" width="120" height="32" fill="#1a7a4c"/>
+    <rect x="36" y="392" width="120" height="32" fill="#2e5aac"/>
+    <rect x="36" y="328" width="120" height="96" fill="none" stroke="#2c3e50" stroke-width="2"/>
+  </g>
+  <text x="96" y="446" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">what arrived</text>
+
+  <line x1="172" y1="376" x2="214" y2="376" stroke="#196f3d" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="230" y="322" width="210" height="112" rx="8" fill="#ffffff" stroke="#b9770e" stroke-dasharray="5 3"/>
+  <text x="335" y="350" fill="#9a6b12" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" text-anchor="middle">knows G from batch 12</text>
+  <rect x="258" y="366" width="36" height="28" rx="4" fill="#d35400"/>
+  <rect x="306" y="366" width="36" height="28" rx="4" fill="#1a7a4c"/>
+  <rect x="354" y="366" width="36" height="28" rx="4" fill="#2e5aac"/>
+  <text x="335" y="418" fill="#9a6b12" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">G was never in the packet</text>
+
+  <line x1="456" y1="376" x2="500" y2="376" stroke="#196f3d" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" fill="#ffffff" text-anchor="middle">
+    <rect x="516" y="324" width="100" height="40" rx="6" fill="#d35400"/>
+    <text x="566" y="350">p1</text>
+    <rect x="632" y="324" width="100" height="40" rx="6" fill="#1a7a4c"/>
+    <text x="682" y="350">p4</text>
+    <rect x="748" y="324" width="100" height="40" rx="6" fill="#2e5aac"/>
+    <text x="798" y="350">p6</text>
+  </g>
+  <text x="682" y="392" fill="#196f3d" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" text-anchor="middle">restored</text>
+  <text x="682" y="416" fill="#5d6d7e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" text-anchor="middle">same packets as step 1</text>
+</svg>

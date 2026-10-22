@@ -4,15 +4,13 @@ A generation is `K` source packets of `T` bytes. The pictures below use one smal
 
 The source calls `bats_encode`. Each relay calls `bats_recode`. The destination calls `bats_decode`. A relay does not decode. The destination does not recode.
 
-## What one batch takes from the generation
+![Three packets are mixed, a relay mixes them again, and the destination separates them](figures/overview.svg)
 
-![One batch keeps d of the K source packets](figures/batch.svg)
+Step 1 picks three source packets. Step 2 stacks them into each coded packet. The picture shows one of the eight. `G`, the recipe for that stack, stays off the packet. The batch number is enough for the destination to rebuild the same recipe. Step 3 adds coded packets of that same batch together. The colors do not change, because no new source packet enters. Step 4 uses the rebuilt recipe to take the stack apart. `p1`, `p4`, and `p6` come back as they were in step 1.
 
-The degree is the number of source packets inside the batch. Eight packets can carry a rank of at most 8, so a batch whose degree is above 8 cannot be solved from its own arrivals. It becomes solvable after other batches have recovered some of those packets. A degree near 1 solves from very little data and unlocks the batches that overlap it. Ψ is the balance between those two.
+One coded packet is one clue. The generation is finished when the clues from every batch separate all `K` source packets. The degree `d` is how many source packets sit in the stack. Here `d` is 3. A degree above 8 cannot be separated from its own eight packets, because those packets have only eight rows. It waits until another batch has already restored some of them. Ψ chooses the degrees.
 
 ## How the source builds the eight packets
-
-![Chosen packets times G, and the packet that leaves the source](figures/encode.svg)
 
 `bats_encode` writes the eight packets into two buffers. Packet `j` starts at `coeff[j * 8]` and `payload[j * T]`. The call returns 0 on success.
 
@@ -38,8 +36,6 @@ The line program packs these, plus its own magic, version, packet index, and fil
 
 ## What a relay changes
 
-![A relay applies one pair of coefficients to the coefficient and the payload](figures/recode.svg)
-
 The bucket key is flow, generation, and `batch_id`. One `bats_recode` call reads one bucket. `recode_state` is a `uint64_t` owned by the hop, one variable per flow. Set it to a nonzero value before the first recode of that flow and pass the same variable on every later batch, including the next generation. The library updates it. The next hop has its own variable.
 
 A repeated coefficient is dropped. Packet `s` occupies `coeff_in[s * 8]` and `payload_in[s * T]`. When `n_in` is at least 1 the call writes eight packets and sets `n_out` to 8. When `n_in` is 0 it writes nothing. The buffers may overlap. Forward each new coefficient with its new payload.
@@ -50,8 +46,6 @@ bats_recode(coeff_in, payload_in, n_in, T, &recode_state,
 ```
 
 ## What the destination solves
-
-![A received coefficient dotted with a row of G](figures/decode.svg)
 
 Each arrival becomes a `BatsSymbol`: `batch_id`, the eight coefficient bytes, and a pointer to `T` live payload bytes. Symbol order does not matter. The pointer stays valid until `bats_decode` returns. A return of 0 means the generation needs more packets. A return of `-1` means an argument is invalid. `n_bp` and `n_inact` may be `NULL`.
 
@@ -64,10 +58,6 @@ On a return of 1, strip the padding and compare the checksum. A match is the mom
 A second flow has its own flow identifier, its own `batch_id` sequence, its own symbols, and its own `recode_state` on each hop.
 
 ## Where the degree distribution sits
-
-![Rank is the number of nonzero coefficient rows after elimination](figures/rank.svg)
-
-![The same degree table at both ends, and the file the next run loads](figures/psi.svg)
 
 The line program does this in two transfers. Relays are the same in both.
 
@@ -89,7 +79,7 @@ make lib
 gcc -std=c11 -I/path/to/bats caller.c /path/to/bats/libbats.a -o caller
 ```
 
-The archive is `field.c`, `source.c`, `dest.c`, and `codec.c`. Include only `bats_codec.h`. Call `bats_init` once in each process before the first codec call. The pictures above are the three calls. `psi_opt` stays a separate tool. The library does not watch the network, so the program loads the file itself.
+The archive is `field.c`, `source.c`, `dest.c`, and `codec.c`. Include only `bats_codec.h`. Call `bats_init` once in each process before the first codec call. The picture above is those three calls. `psi_opt` stays a separate tool. The library does not watch the network, so the program loads the file itself.
 
 The measuring transfer calls no `psi_set`. Both ends then use the built-in weights. The destination counts the nine ranks over several hundred finished batches and runs:
 
