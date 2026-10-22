@@ -4,9 +4,13 @@ A generation is `K` source packets of `T` bytes. The pictures below use one smal
 
 The source calls `bats_encode`. Each relay calls `bats_recode`. The destination calls `bats_decode`. A relay does not decode. The destination does not recode.
 
-![Three packets are mixed, a relay mixes them again, and the destination separates them](figures/overview.svg)
+![Source mixes three packets, the relay adds coded packets, and the destination separates them](figures/overview.svg)
 
-Step 1 picks three source packets. Step 2 stacks them into each coded packet. The picture shows one of the eight. `G`, the recipe for that stack, stays off the packet. The batch number is enough for the destination to rebuild the same recipe. Step 3 adds coded packets of that same batch together. The colors do not change, because no new source packet enters. Step 4 uses the rebuilt recipe to take the stack apart. `p1`, `p4`, and `p6` come back as they were in step 1.
+The source picks `p1`, `p4`, and `p6`, mixes them by `G`, and sends eight packets. Packet 0 leaves with a single 1 in its coefficient. That 1 means the payload is column 0 of the mix. `G` stays behind. The batch number is what travels.
+
+The relay never sees `p1`, `p4`, or `p6`. It adds packets of batch 12. The picture uses packet 0 with weight `a` and packet 1 with weight `b`. The same weight multiplies that packet's coefficient and its payload, so the new coefficient is `a, b, 0, 0, 0, 0, 0, 0`. The payload is still only those three colors.
+
+The destination rebuilds the same `G` from the batch number. Row 1, weighted by the received `a` and `b`, is `p1`'s share of the payload. The other two rows give `p4` and `p6`. The three packets come back as the source drew them.
 
 One coded packet is one clue. The generation is finished when the clues from every batch separate all `K` source packets. The degree `d` is how many source packets sit in the stack. Here `d` is 3. A degree above 8 cannot be separated from its own eight packets, because those packets have only eight rows. It waits until another batch has already restored some of them. Ψ chooses the degrees.
 
