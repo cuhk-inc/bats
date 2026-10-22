@@ -1,94 +1,121 @@
 # Integrating the BATS Codec
 
-This document describes how to use the BATS codec inside an existing transport. The library provides encoding, recoding, and decoding only. The caller retains sockets, headers, scheduling, rate control, and loss. Do not link `link.c`, `relay.c`, `sim.c`, or `main.c`, and do not substitute `bats_sim` or `bats_line` for the caller's own forwarding path.
+This document is the order of work for placing the BATS codec into an existing network. Complete each stage and pass its check before starting the next. The library provides encoding, recoding, and decoding only. Sockets, headers, scheduling, rate control, and loss remain in the caller.
 
-The library exposes three operations. The source calls `bats_encode`. Each relay calls `bats_recode`. The destination calls `bats_decode`. Every batch produces `BATS_M` packets, which is 8. The outer code draws a degree from the distribution Ψ, selects that many source packets, and forms the matrix `G`. A relay mixes only the packets of one batch that have already arrived. Neither `G` nor the selected source indices are placed in the packet.
+Link `libbats.a`, built from `field.c`, `source.c`, `dest.c`, and `codec.c`. Include only `bats_codec.h`. Leave `link.c`, `relay.c`, `sim.c`, `main.c`, and `psi_opt.c` out of the caller's program. `psi_opt` is a separate tool, run once between transfers.
 
-## Build
+Every batch emits `BATS_M` packets, which is 8. The outer code draws a degree from Ψ, selects that many source packets, and forms the matrix `G`. `G` and the selected indices are not placed in the packet. The destination rebuilds them from `code_seed` and `batch_id`. A relay mixes only packets that already share one `batch_id`.
+
+## Order of work
+
+1. Build the library and decode one generation in a single process, with no sockets.
+2. Freeze `K`, `T`, `code_seed`, the packet layout, and the rule that stops the source. Use the built-in Ψ. Call no `psi_set`.
+3. Carry those packets on the real path while every relay forwards them unchanged. The destination decodes and checks the object.
+4. Enable `bats_recode` at one relay, check the object, then enable the next relay.
+5. Accept the path only when the caller's checksum matches. `bats_decode` returning 1 is not that check.
+6. On that same path, count the rank of several hundred batches and run `psi_opt`.
+7. Install the resulting weights at the source and the destination together, then repeat the transfer. Leave the relays unchanged.
+
+A later change of path, relay count, or loss returns to stage 6. It does not reopen stages 1 to 4.
+
+## Stage 1. Library, one process
+
+On the build machine:
 
 ```bash
 make lib
+gcc -std=c11 -I/path/to/bats bringup.c /path/to/bats/libbats.a -o bringup
 ```
 
-The archive is `libbats.a`. The caller includes only `bats_codec.h`:
-
-```bash
-gcc -std=c11 -I/path/to/bats her_program.c /path/to/bats/libbats.a -o her_program
-```
-
-Call `bats_init` once in the process, before the first encode, recode, or decode.
-
-## Parameters agreed in advance
-
-The source and the destination must use the same parameters. A relay does not read them.
-
-| Parameter | Used by | Agreement |
-| --- | --- | --- |
-| `K` | Source, destination | Number of source packets in one generation |
-| `T` | Source, destination, relay | Payload length of one packet, in bytes |
-| `code_seed` | Source, destination | One shared 64-bit integer |
-| Ψ | Source, destination | Leave `psi_set` unset at both ends, or pass the same weights to both |
-| `batch_id` | Written by the source, forwarded unchanged, read by the destination | Starts at 0 within each generation and increases by one |
-
-When the object length is not a multiple of `T`, the source pads the last source packet with zeros before encoding. After a successful decode, the destination discards that padding.
-
-`bats_decode` returns 1 when the equations it constructed have a solution. A mismatched Ψ or `code_seed` still produces a solved buffer. A checksum over the object belongs in the caller.
-
-## Fields carried in each packet
-
-The library does not construct a header. Each packet must carry at least the following fields.
-
-| Field | Size | Origin |
-| --- | --- | --- |
-| `batch_id` | 4 bytes | The identifier passed to `bats_encode` |
-| Coefficient | 8 bytes | `coeff[j * 8]` at the source. After recoding, the coefficient produced by `bats_recode` |
-| Payload | `T` bytes | `payload[j * T]` at the source. After recoding, the payload produced by `bats_recode` |
-
-The coefficient must be forwarded after every relay. Without it, the destination cannot form equations.
-
-The same `code_seed` and `batch_id` always regenerate the same batch. Transmitting that `batch_id` again repeats the same eight packets. A new batch, and therefore new equations, requires a new `batch_id`.
-
-## Source
-
-Lay the generation out as `K * T` contiguous bytes. Begin at `batch_id` 0 and call `bats_encode` once per batch, increasing `batch_id` by one each time. Each call writes eight packets.
+`bringup` calls `bats_init` once, then `bats_encode` on `K * T` bytes with `batch_id` 0, fills one `BatsSymbol` per packet from the buffers below, and calls `bats_decode` with the same `K`, `T`, and `code_seed`. One batch is usually short of a full solution. Increment `batch_id` and repeat until `bats_decode` returns 1. Compare the recovered bytes with the original.
 
 | Buffer | Size | Layout |
 | --- | --- | --- |
 | `coeff` | 64 bytes | Packet `j` starts at `coeff[j * 8]` |
 | `payload` | `8 * T` bytes | Packet `j` starts at `payload[j * T]` |
 
-The call returns 0 on success and `-1` when an argument is invalid.
+`bats_encode` returns 0 on success and `-1` when an argument is invalid. `bats_decode` returns 1 when `dst` holds all `K` packets, 0 when the equations are short, and `-1` when an argument is invalid or a symbol has a null `payload`. Each `payload` pointer stays valid until `bats_decode` returns. Symbol order does not matter.
 
-One call draws a degree `d` from Ψ, using `K` when `d` exceeds `K`, selects `d` source packets uniformly, and fills a `d × 8` matrix `G`. The eight payloads are those source packets multiplied by `G`. The coefficient of source packet `j` is column `j` of the `8 × 8` identity.
+Check: the recovered bytes equal the original. Install this binary's archive on the source host, every relay host, and the destination host. Each of those processes calls `bats_init` once, before its first codec call.
 
-One batch covers only `d` of the `K` source packets. For a large `K`, continue with `batch_id + 1`. The destination calls `bats_decode` on every packet received so far and stops when the call returns 1. Further batches are required when the path loses packets.
+## Stage 2. Parameters and packet layout
+
+Write these down before changing the live forwarders. The source and the destination use the same values. A relay does not read `K`, `code_seed`, or Ψ.
+
+| Parameter | Agreement |
+| --- | --- |
+| `K` | Number of source packets in one generation |
+| `T` | Payload length of one packet, in bytes. Fit it to the caller's existing payload size |
+| `code_seed` | One shared 64-bit integer for the whole trial |
+| Ψ | Built-in. Degrees 1 through 8, weights 12, 30, 40, 44, 40, 36, 30, 24. Neither end calls `psi_set` |
+| `batch_id` | Starts at 0 in each generation and increases by one. The same `code_seed` and `batch_id` always regenerate the same eight packets |
+
+The object is split into generations of `K` packets. The last packet of the object is padded with zeros up to `T` bytes. A generation identifier starts at 0. `batch_id` starts again at 0 in the next generation. The first trial uses one flow and one generation. Further flows and further generations wait until stage 5 has passed.
+
+Each packet already has whatever header the network uses. Add these fields and forward them at every hop.
+
+| Field | Size | Set by |
+| --- | --- | --- |
+| Flow identifier | 2 bytes | 0 while the trial has one flow |
+| Generation | 4 bytes | 0 while the object fits in one generation |
+| `batch_id` | 4 bytes | The value passed to `bats_encode` |
+| Coefficient | 8 bytes | `coeff[j * 8]` at the source. After a relay recodes, the coefficient from `bats_recode` |
+| Payload | `T` bytes | `payload[j * T]` at the source. After a relay recodes, the payload from `bats_recode` |
+
+The destination needs the coefficient. A relay that drops it leaves nothing from which to form equations.
+
+Also choose how the source stops. The library has no reverse message. Two rules are used later:
+
+- Transfer. The destination sends the caller's existing completion signal after `bats_decode` returns 1 and the checksum matches. The source then stops incrementing `batch_id` for that generation.
+- Measurement, stage 6 only. The source keeps sending until the destination has counted several hundred finished batches. Decoding one object is not the end of that run.
+
+Place a checksum over the original object bytes in the caller's header or in a side message. The checksum covers the object before padding.
+
+Check: source, relays, and destination parse one captured packet into the same five fields, and the written parameters name one `K`, one `T`, and one `code_seed`.
+
+## Stage 3. Real path, relays still forward
+
+The source lays one generation out as `K * T` contiguous bytes. It starts at `batch_id` 0. Each call writes eight packets, which the existing sender transmits.
 
 ```c
 #include "bats_codec.h"
 
-enum { K = 128, T = 1024 };
-
-int emit_one_batch(const uint8_t src[K * T], uint64_t code_seed, uint32_t batch_id,
-                   uint8_t coeff[BATS_M * BATS_M], uint8_t payload[BATS_M * T]) {
+int emit_one_batch(const uint8_t *src, int K, int T, uint64_t code_seed,
+                   uint32_t batch_id, uint8_t *coeff, uint8_t *payload) {
     return bats_encode(src, K, T, code_seed, batch_id, coeff, payload);
 }
 ```
 
-## Relay
+One call draws a degree `d` from Ψ, using `K` when `d` exceeds `K`, selects `d` source packets uniformly, and fills a `d × 8` matrix `G`. The eight payloads are those source packets multiplied by `G`. The coefficient of source packet `j` is column `j` of the `8 × 8` identity. The next batch uses `batch_id + 1`.
 
-A relay does not call `bats_encode`, `bats_decode`, or `psi_set`. It calls only `bats_recode`.
+During this stage a relay stores nothing and calls neither `bats_encode`, `bats_recode`, nor `bats_decode`. It forwards the five fields as they arrived.
 
-1. Store arrivals in a bucket keyed by `batch_id`. Packets from two batch identifiers must not be passed to one `bats_recode` call. They were formed from different subsets of the source.
-2. Keep one `uint64_t recode_state` for each hop of each flow. Set it to a nonzero seed before the first recode on that hop. Pass the same variable on every later call. The library updates it. Give every other hop, and every other flow, its own state.
-3. Recode and forward as soon as all eight packets of the batch have arrived. If the batch is still incomplete when the hop becomes idle, and at least one packet is present, recode the packets on hand. If the bucket is empty, forward nothing. A call with `n_in == 0` writes no packets.
-4. Drop a repeated packet of the same batch. Pass only packets with distinct coefficients.
-5. Pack the input in packet order. Packet `s` occupies `coeff_in[s * 8]` and `payload_in[s * T]`. When `n_in > 0`, the call writes eight new packets and sets `*n_out` to 8. Forward each new coefficient with its new payload. Do not reuse the coefficient that arrived.
-6. The input and output buffers may overlap. An invalid argument returns `-1`.
-
-The destination does not recode.
+The destination appends each arrival to a `BatsSymbol` array for that generation. It copies `batch_id` and the eight coefficient bytes, and points `payload` at `T` live bytes. After each arrival it calls:
 
 ```c
-uint64_t recode_state = 11; /* Initial value for this hop and this flow. */
+int n_bp = 0;
+int n_inact = 0;
+int ok = bats_decode(symbols, n_symbols, K, T, code_seed, dst, &n_bp, &n_inact);
+```
+
+`n_bp` and `n_inact` may be `NULL`. On 0, it waits for more packets. On 1, it removes the padding and compares the checksum. On a match, it sends the completion signal. On a mismatch, it stops the trial: the two ends disagree on `K`, `T`, or `code_seed`.
+
+Check: one object crosses the real path, including every relay in its final place, and the checksum matches. Loss may require more batches than stage 1. The source continues until the completion signal.
+
+## Stage 4. Recoding, one relay at a time
+
+Replace forwarding with `bats_recode` at the first relay. Leave the others forwarding. Repeat the stage 3 transfer and require the checksum to match. Then convert the next relay. The destination never recodes.
+
+At a recoding relay:
+
+1. Keep a bucket keyed by flow, generation, and `batch_id`. One `bats_recode` call receives packets of one key only.
+2. Keep one `uint64_t recode_state` for each flow on that hop. Set it to a nonzero value before the first recode of that flow, and pass the same variable on every later batch. The library updates it. Another hop, and another flow, each have their own variable.
+3. Drop a packet whose coefficient is already in the bucket. Pass the remaining packets in arrival order: packet `s` occupies `coeff_in[s * 8]` and `payload_in[s * T]`.
+4. Recode and forward as soon as the bucket holds eight packets. When the hop becomes idle and the bucket holds from one to seven packets, recode those packets. An empty bucket produces no output. A call with `n_in == 0` writes nothing and sets `*n_out` to 0. Otherwise the call writes eight packets and sets `*n_out` to 8.
+5. Forward each new coefficient with its new payload. The input and output buffers may overlap. An invalid argument returns `-1`.
+
+```c
+uint64_t recode_state = 11; /* This hop, this flow, for the life of the flow. */
 
 int relay_one_batch(const uint8_t *coeff_in, const uint8_t *payload_in, int n_in, int T,
                     uint8_t *coeff_out, uint8_t *payload_out) {
@@ -99,39 +126,27 @@ int relay_one_batch(const uint8_t *coeff_in, const uint8_t *payload_in, int n_in
 }
 ```
 
-When `bats_recode` returns 0 and `n_out` is 8, transmit those eight packets. When `n_in` is 0, `n_out` is 0.
+Transmit the eight packets when the call returns 0 and `n_out` is 8.
 
-For several flows, the header must distinguish them. Each flow may number `batch_id` from 0. Each flow keeps a separate `recode_state` on each hop.
+Check, after each relay is converted: the same object arrives, and the checksum matches. A relay still forwards during this stage when it has not yet been converted.
 
-## Destination
+## Stage 5. Accept the deployment
 
-The destination does not recode. Assemble the received packets into a `BatsSymbol` array. Copy `batch_id` and the eight coefficient bytes into the symbol, and point `payload` at `T` live bytes. Symbol order does not matter.
+Run the object again with every relay recoding and with the built-in Ψ. Accept the deployment when the checksum matches. A return of 1 from `bats_decode` with a failed checksum means the source and the destination used different parameters. Correct those parameters and repeat this stage. Leave Ψ unchanged until this check passes.
 
-```c
-int n_bp = 0;
-int n_inact = 0;
-int ok = bats_decode(symbols, n_symbols, K, T, code_seed, dst, &n_bp, &n_inact);
-```
+After this check, a larger object is a sequence of generations. Each generation has its own `batch_id` sequence, starting at 0, and its own symbol array at the destination. A relay bucket includes the generation in its key. `recode_state` stays with the flow and is not reset at a generation boundary.
 
-| Return | Meaning |
-| --- | --- |
-| 1 | `dst` contains all `K` source packets |
-| 0 | The equations are insufficient, or `n_symbols == 0` |
-| -1 | An argument is invalid, or a symbol has a null `payload` |
+A second flow is the same path with a new flow identifier, a new `recode_state` on each hop, and its own `batch_id` sequence. The header already has the flow field from stage 2.
 
-Each `payload` pointer must remain valid until `bats_decode` returns. `n_bp` and `n_inact` may be `NULL`. After a return of 1, remove the padding on the final packet and check the caller's checksum.
+## Stage 6. Degree distribution for this network
 
-## Degree distribution on a new network
+Collect this measurement on the path that passed stage 5, with the same relays recoding, and with the Ψ that stage 5 used. The built-in distribution is the correct first measurement. Keep that Ψ for the whole measurement.
 
-If neither end calls `psi_set`, both use the built-in distribution. Its degrees are 1 through 8, and its weights are 12, 30, 40, 44, 40, 36, 30, and 24. Use this distribution for the first measurement on a new path.
+The rank of a batch is the rank over GF(256) of the coefficient rows that arrived for that `batch_id`. Place each received 8-byte coefficient in a row of an `r × 8` matrix and row-reduce it. The number of nonzero rows is the rank. It is a property of the coefficients, so extra packets can be linearly dependent and the packet count is a different quantity. A batch that the source finished sending, and from which nothing arrived, has rank 0. A batch the source has not sent is left out of the histogram.
 
-Ψ is fitted to the rank of each batch at the destination, not to a loss percentage. The rank is the rank over GF(256) of the coefficient matrix that remains for that batch. Place each received 8-byte coefficient in a row of an `r × 8` matrix and row-reduce it. The number of nonzero rows is the rank. A batch from which nothing arrives has rank 0. The number of packets is not the rank: after recoding, additional packets may be linearly dependent.
+The destination counts how many batches have each rank from 0 through 8. The result is nine integers, `h0` through `h8`. Continue until those nine integers cover several hundred batches. One short object may finish in fewer batches; repeat generations on the same path until the count is large enough. Both ends keep the same Ψ for every one of those generations.
 
-Obtain the distribution as follows.
-
-1. Run the source, relays, and destination over the real path, using the procedure above. Collect several hundred batches before treating the histogram as stable. Both ends use the same Ψ for the whole measurement. On a first measurement, that is the built-in distribution. Do not change Ψ while the measurement is in progress.
-2. At the destination, count how many batches have each rank from 0 through 8. The result is nine integers, `h0` through `h8`. A `batch_id` that the source finished sending, and from which nothing arrived, contributes to `h0`. Do not count a batch the source has not yet sent.
-3. Build the optimizer in the `bats` directory and pass those nine integers. The degree cap must not exceed `K`. A larger degree is reduced to `K` during encoding.
+Build the optimizer in the `bats` directory. The degree cap is at most `K`. A larger degree is reduced to `K` during encoding.
 
 ```bash
 make psi_opt
@@ -141,7 +156,11 @@ make psi_opt
 
 `--eta-bar` is the fraction of source packets that belief propagation is required to sustain. The default is 0.99. The optimizer writes `psi_network.txt` within a few seconds. The first value in the file is the maximum degree `D`. The following line contains the integer weights of degrees 1 through `D`. Lines beginning with `#` are comments.
 
-4. Install that file at both the source and the destination. After `bats_init`, and before the first packet, both ends load the same weights. A relay does not load them.
+Check: the file exists, `D` is at least 1, and the nine ranks sum to the number of finished batches.
+
+## Stage 7. Install Ψ and transfer again
+
+Copy `psi_network.txt` to the source host and the destination host. After `bats_init`, and before the first packet of the next transfer, both ends load the same weights. A relay does not load them. `psi_set` stores one distribution for the process and returns 1 on success.
 
 ```c
 int weights[4097];
@@ -158,8 +177,6 @@ if (!psi_set(weights, D)) {
 }
 ```
 
-`psi_set` returns 1 on success. It stores one distribution for the process, so it must be called before any encode or decode in that process.
+Run the stage 5 transfer again. The checksum matches only when both ends installed this file. Updating one end alone makes the destination solve for the wrong packets, and `bats_decode` can still return 1.
 
-5. Use the codec again on the next transfer. The selected packets and `G` agree only when the source and the destination have both installed `psi_network.txt`. Updating one end alone makes the destination solve for the wrong packets, and `bats_decode` may still return 1.
-
-When the path, the number of relays, or the loss changes materially, repeat the rank measurement with the distribution then in use, run `psi_opt` again, and replace the file at both ends together. Do not change Ψ in the middle of a transfer.
+Replace the file only between transfers, and replace it at both ends in the same step. When the path, the number of relays, or the loss changes, repeat stage 6 with the weights then in use, run `psi_opt` again, and install the new file at both ends together.
